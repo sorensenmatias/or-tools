@@ -19,14 +19,15 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 #include "absl/strings/str_format.h"
 #include "ortools/base/commandlineflags.h"
 #include "ortools/base/hash.h"
 #include "ortools/base/integral_types.h"
 #include "ortools/base/logging.h"
-#include "ortools/base/port.h"
-#include "ortools/base/stringprintf.h"
+//#include "ortools/base/port.h"
+//#include "ortools/base/stringprintf.h"
 #include "ortools/base/timer.h"
 #include "ortools/linear_solver/linear_solver.h"
 
@@ -127,6 +128,12 @@ namespace operations_research {
 		// so it is not possible right now.
 		void* underlying_solver() override { return reinterpret_cast<void*>(&osi_); }
 
+		void SetMaximumNumberOfSavedSolutions(int value);
+
+		int GetNumberOfSavedSolutions();
+
+	std::vector<std::tuple<std::string, double>> GetSavedSolution(int solutionNo);
+
 	private:
 		// Reset best objective bound to +/- infinity depending on the
 		// optimization direction.
@@ -141,7 +148,7 @@ namespace operations_research {
 		void SetPresolveMode(int value) override;
 		void SetScalingMode(int value) override;
 		void SetLpAlgorithm(int value) override;
-		bool ReadParameterFile(const std::string& filename) override;
+		//bool ReadParameterFile(const std::string& filename) override;
 
 		OsiClpSolverInterface osi_;
 		// TODO(user): remove and query number of iterations directly from CbcModel
@@ -151,6 +158,9 @@ namespace operations_research {
 		// Special way to handle the relative MIP gap parameter.
 		double relative_mip_gap_;
 		std::string solver_specific_parameters_;
+		int maximumNumberOfSavedSolutions;
+
+	std::vector<std::vector<std::tuple<std::string, double>>> savedSolutions;
 	};
 
 	// ----- Solver -----
@@ -162,7 +172,10 @@ namespace operations_research {
 		nodes_(0),
 		best_objective_bound_(-std::numeric_limits<double>::infinity()),
 		relative_mip_gap_(MPSolverParameters::kDefaultRelativeMipGap),
-		solver_specific_parameters_("") {
+		solver_specific_parameters_(""),
+		maximumNumberOfSavedSolutions(1)
+		//savedSolutions(nullptr)
+	{
 
 		osi_.setStrParam(OsiProbName, solver_->name_);
 		osi_.setObjSense(1);
@@ -393,6 +406,8 @@ namespace operations_research {
 		// NOTE: Trailing space is required to avoid buffer overflow in cbc.
 		//int return_status = callCbc("-solve ", model);
 
+		model.setMaximumSavedSolutions(maximumNumberOfSavedSolutions);
+
 		std::string call_string = " -solve ";
 		call_string = solver_specific_parameters_ + call_string;
 		int return_status = callCbc(call_string, model);
@@ -469,6 +484,28 @@ namespace operations_research {
 			else {
 				VLOG(1) << "No feasible solution found.";
 			}
+
+			savedSolutions = std::vector<std::vector<std::tuple<std::string, double>>>();
+
+			for (int s = 0; s < model.numberSavedSolutions(); s++)
+			{
+				const double * solution = model.savedSolution(s);
+
+				std::vector<std::tuple<std::string, double>> solVector = std::vector<std::tuple<std::string, double>>();
+
+				for (int i = 0; i < solver_->variables_.size(); i++) {
+					MPVariable* const var = solver_->variables_[i];
+					const int var_index = MPSolverVarIndexToCbcVarIndex(var->index());
+					const double val = values[var_index];
+					std::string varname = var->name();
+
+					std::tuple<std::string, double> t = std::tuple<std::string, double> {varname, val};
+
+					solVector.push_back(t);
+				}
+
+				savedSolutions.push_back(solVector);
+			}
 		}
 
 		iterations_ = model.getIterationCount();
@@ -517,6 +554,18 @@ namespace operations_research {
 		relative_mip_gap_ = value;
 	}
 
+	void CBCInterface::SetMaximumNumberOfSavedSolutions(int value) {
+		maximumNumberOfSavedSolutions = value;
+	}
+
+	int CBCInterface::GetNumberOfSavedSolutions(){
+		return savedSolutions.size();
+	}
+
+	std::vector<std::tuple<std::string, double>> CBCInterface::GetSavedSolution(int solutionNo){
+		return savedSolutions[solutionNo];
+	}
+
 	void CBCInterface::SetPrimalTolerance(double value) {
 		// Skip the warning for the default value as it coincides with
 		// the default value in CBC.
@@ -553,9 +602,9 @@ namespace operations_research {
 		SetUnsupportedIntegerParam(MPSolverParameters::LP_ALGORITHM);
 	}
 
-	bool CBCInterface::ReadParameterFile(const std::string& filename) {
+	/*bool CBCInterface::ReadParameterFile(const std::string& filename) {
 		return FileGetContents(filename, &solver_specific_parameters_).ok();
-	}
+	}*/
 
 	MPSolverInterface* BuildCBCInterface(MPSolver* const solver) {
 		return new CBCInterface(solver);

@@ -257,6 +257,10 @@ class MPSolutionResponse;
 %unignore operations_research::MPSolverParameters::SCALING_OFF;  // no test
 %unignore operations_research::MPSolverParameters::SCALING_ON;  // no test
 
+//%unignore operations_research::CBCInterface::SetMaximumNumberOfSavedSolutions;
+//%unignore operations_research::CBCInterface::GetNumberOfSavedSolutions;
+//%unignore operations_research::CBCInterface::GetSavedSolution;
+
 %include "ortools/linear_solver/linear_solver.h"
 
 %unignoreall

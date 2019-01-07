@@ -17,11 +17,7 @@
     <PackageOutputPath>../../../packages</PackageOutputPath>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 
-    <AssemblyOriginatorKeyFile>../../../bin/or-tools.snk</AssemblyOriginatorKeyFile>
-    <SignAssembly>true</SignAssembly>
-    <PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
-
-    <!-- Build Properties -->
+        <!-- Build Properties -->
     <!-- we want to create a Meta-Project only referencing runtime Project(s) -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
